@@ -21,11 +21,11 @@ pip install rjcli
 
 OR
 
-**If you do not want to install Python and want an executable binary, then download Windows Installer and install the program.**
+**If you do not want to install Python and want an executable binary, then download the executable from Windows folder.**
 
 ```
-Download rjcli-installer.exe
-Install the application
+Download rjcli.zip and unzip
+Execute rjcli.exe
 ```
 Once installed execute a command 'rjcli' and login to PPDM!
 
