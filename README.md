@@ -63,8 +63,8 @@ monitor --jobs running
 ```
 
 ## Example Output
-.. image:: images/screen1.png
-.. image:: images/screen2.png
+![](images/screen1.PNG)
+![](images/screen2.PNG)
 ```
 dellemc-ppdm-cli > show --jobs successful --period 1day-ago
 +---------------+-----------+------------+--------------------------+
