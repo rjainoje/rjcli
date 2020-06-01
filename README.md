@@ -9,11 +9,11 @@ This is a version 1.0 CLI, i will be adding more features in the future.
 
 ## Getting Started
 
-rjcli package is available in Python Package Indexes (PyPi) or download the sourcecode from github and install it using setup.py
-Python >3.5 and pip are prerequesites to install this package
+**Windows and Linux using Python3 and Pip.**
 
-::
-1. After installing Python 3.x and pip, just run the following command.
+rjcli package is available in Python Package Index (PyPi) or download the sourcecode from this repo and install it using setup.py
+
+Python >3.5 and pip are prerequesites, please install them before installing this package.
 
 ```
 pip install rjcli
@@ -21,23 +21,17 @@ pip install rjcli
 
 OR
 
-2. After installing Python 3.x, download the zip file rjcli.1.0.0.tar.gz and unzip.
+**If you do not want to install Python and want an executable binary, then download Windows Installer and install the program.**
 
 ```
-Download and unzip rjcli.1.0.0.tar.gz
-python setup.py install
+Download rjcli-installer.exe
+Install the application
 ```
-
 Once installed execute a command 'rjcli' and login to PPDM!
 
-## Windows 64bit only
-If you prefer not to install Python, then download the installer from Github and install the application.
-Once installed execute a command 'rjcli.exe' and login to PPDM!
 
 ## Usage
-::
-Connect to the PPDM with either hostname or IP
-Following are the available commands and options
+Connect to the PPDM with either hostname or IP. The following are the commands and options available.
 
 ```
 login
