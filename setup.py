@@ -14,12 +14,12 @@ install_requirements = [
 # calling the setup function  
 setuptools.setup( 
         name ='rjcli',
-        version ='1.0.1',
+        version ='1.0.3',
         author ='Raghava Jainoje',
         author_email ='raghavachary_j@yahoo.com',
         url ='https://github.com/rjainoje/rjcli',
         description ='CLI Interface for PPDM',
-        long_description = open("README.rst").read(),
+        long_description = open("README.md").read(),
         long_description_content_type ="text/markdown", 
         license ='MIT',
         packages=setuptools.find_packages(),
