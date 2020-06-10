@@ -14,7 +14,7 @@ install_requirements = [
 # calling the setup function  
 setuptools.setup( 
         name ='rjcli',
-        version ='1.0.3',
+        version ='1.0.4',
         author ='Raghava Jainoje',
         author_email ='raghavachary_j@yahoo.com',
         url ='https://github.com/rjainoje/rjcli',

@@ -1,6 +1,6 @@
-# rjcli v1.0.0 for Dell EMC Power Protect Data Manager - Github @ rjainoje
+# rjcli v1.0 for Dell EMC Power Protect Data Manager - Github @ rjainoje
 __author__ = "Raghava Jainoje"
-__version__ = "1.0.3"
+__version__ = "1.0.4"
 __email__ = "raghavachary_j@yahoo.com"
 
 import requests
@@ -13,6 +13,7 @@ import pyfiglet
 from tabulate import tabulate
 from click_shell import shell
 from datetime import datetime, timedelta
+import pandas as pd
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -26,9 +27,8 @@ def get_assets(ppdmuri, token, asset):
 	uri = ppdmuri + 'assets'
 	headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
 	pageSize = '10000'
-
 	if asset != 'all':
-		filter = 'name lk "%{}%"'.format(asset)
+		filter = 'name lk "%{0}%" or details.fileSystem.hostName lk "%{0}%"'.format(asset)
 	else:
 		filter = 'createdAt gt "2010-05-06T11:20:21.843Z"'
 	params = {'filter': filter, 'pageSize': pageSize}
@@ -46,11 +46,10 @@ def get_policies(ppdmuri, token, policies):
 	uri = ppdmuri + 'protection-policies'
 	headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
 	pageSize = '10000'
-
 	if policies != 'all':
-		filter = 'name lk "%{}%"'.format(policies)
+		filter = 'type eq "ACTIVE" and name lk "%{}%"'.format(policies)
 	else:
-		filter = 'createdAt gt "2010-05-06T11:20:21.843Z"'
+		filter = 'type eq "ACTIVE" and createdAt gt "2010-05-06T11:20:21.843Z"'
 	params = {'filter': filter, 'pageSize': pageSize}
 	try:
 		response = requests.get(uri, headers=headers, params=params, verify=False)
@@ -65,7 +64,7 @@ def get_activities(ppdmuri, token, jobs, window):
 	'''This function returns activities based on filters in JSON'''
 	uri = ppdmuri + 'activities'
 	headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
-	filter = 'classType in ("JOB", "JOB_GROUP") and createdTime gt "{}"'.format(window)
+	filter = 'classType in ("JOB", "JOB_GROUP") and category eq "PROTECT" and createdTime gt "{}"'.format(window)
 	orderby = 'createTime DESC'
 	pageSize = '10000'
 	if jobs == 'running':
@@ -100,7 +99,6 @@ def get_stg_targets(ppdmuri, token):
 	headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
 	pageSize = '10000'
 	params = {'pageSize': pageSize}
-
 	try:
 		response = requests.get(uri, headers=headers, params=params, verify=False)
 		response.raise_for_status()
@@ -250,7 +248,7 @@ def show(jobs, period, storage, asset, policies):
 	show --jobs summary --period <1day-ago | 1week-ago> \n
 	show --jobs <successful | failed | all> --period <> \n
 	show --storage details \n
-	show --asset <asset-name | all> \n
+	show --asset <asset-name | all | summary> \n
 	show --policies <policy-name | all>
 	"""
 	if (jobs == 'failed' or jobs == 'successful' or jobs == 'all'):
@@ -271,55 +269,99 @@ def show(jobs, period, storage, asset, policies):
 		activitylist = []
 		window = getwindow(period)
 		activities = get_activities(ppdmuri, token, jobs, window)
-		for activity in activities:
-			try:
-				activitylist.append([activity['protectionPolicy']['name'], activity['classType'], activity['result']['status'], activity['createTime']])
-			except Exception:
-				print ("Some jobs couldn't fetch")
-				continue
-		ok = countList(activitylist, 'OK')
-		failed = countList(activitylist, 'FAILED')
-		canceled = countList(activitylist, 'CANCELED')
-		totaljobs = (ok+failed+canceled)
-		sumlist = [(ok, failed, canceled, totaljobs)]
-		print("															")
-		print("JOB SUMMARY REPORT                  ")
-		print(tabulate(sumlist, headers=["Successful Jobs", "Failed Jobs", "Canceled Jobs", "Total Jobs"], tablefmt="pretty"))
+		if len(activities) == 0:
+			print ("No activities found!")
+		else:
+			for activity in activities:
+				try:
+					activitylist.append([activity['protectionPolicy']['name'], activity['classType'], activity['result']['status'], activity['createTime']])
+				except Exception:
+					print ("Some activities couldn't fetch")
+			ok = countList(activitylist, 'OK')
+			failed = countList(activitylist, 'FAILED')
+			canceled = countList(activitylist, 'CANCELED')
+			totaljobs = (ok+failed+canceled)
+			sumlist = [(ok, failed, canceled, totaljobs)]
+			print("															")
+			print("JOB SUMMARY REPORT                  ")
+			print(tabulate(sumlist, headers=["Successful Jobs", "Failed Jobs", "Canceled Jobs", "Total Jobs"], tablefmt="pretty"))
 	elif (storage == 'details'):
 		stgtargets = get_stg_targets(ppdmuri, token)
-		for storage in stgtargets:
-			try:
-				print("                                                         ")
-				print("---------------------------------------------------------")
-				print("Storage Name:", storage["name"])
-				print("Storage Type:", storage["type"])
-				print("Storage Model:", storage["details"]["dataDomain"]["model"])
-				print("OS Version:   ", storage["details"]["dataDomain"]["version"])
-				print("Total Size (GB):", "%.2f" %(int(storage["details"]["dataDomain"]["totalSize"])/1024/1024/1024))
-				print("Used Percentage:", "%.2f" %(int(storage["details"]["dataDomain"]["percentUsed"])))
-				print("Last Discovered:", storage["lastDiscoveryStatus"])
-			except Exception:
-				print ("Some storage couldn't fetch")
-				continue
-	elif asset:
-		allassets = get_assets(ppdmuri, token, asset)
-		if len(allassets) == 0:
-			print('The asset could not be found')
-		elif len(allassets) == 1:
-			for asset in allassets:
-				print("---------------------------------------------------------")
-				print("Asset Name:", asset["name"])
-				print("Asset Type:", asset["type"])
-				print("Last Backup:", asset["lastAvailableCopyTime"])
-				print("OS Version :", asset["details"]["vm"]["guestOS"])
+		if len(stgtargets) == 0:
+			print ("No storage devices found!")
 		else:
-			assetlist = []
-			for asset in allassets:
+			for storage in stgtargets:
 				try:
-					assetlist.append([asset["name"], asset["type"], asset["lastAvailableCopyTime"]])
+					print("                                                         ")
+					print("---------------------------------------------------------")
+					print("Data Domain Name:", storage["name"])
+					print("DD Type:         ", storage["type"])
+					print("DD Model:        ", storage["details"]["dataDomain"]["model"])
+					print("DD Serial Number:", storage["details"]["dataDomain"]["serialNumber"])
+					print("DDOS Version:    ", storage["details"]["dataDomain"]["version"])
+					print("Total Size (GB): ", "%.2f" %(int(storage["details"]["dataDomain"]["totalSize"])/1024/1024/1024))
+					print("Used Size (GB):  ", "%.2f" %(int(storage["details"]["dataDomain"]["totalUsed"])/1024/1024/1024))
+					print("Dedupe Factor(x):", "%.1f" %(storage["details"]["dataDomain"]["compressionFactor"]))
+					print("Used Percentage: ", "%.2f" %(int(storage["details"]["dataDomain"]["percentUsed"])))
+					print("Last Status:     ", storage["lastDiscoveryStatus"])
+					print("Last Discovered: ", storage["lastDiscovered"])
 				except Exception:
-					print ("Some assets couldn't fetch")
-			print(tabulate(assetlist, headers=["Client Name", "Client Type", "Last BackupCopy", "Guest OS"], tablefmt="pretty"))
+					print ("Some storage devices couldn't display")
+					continue
+	elif asset:
+		if asset == 'summary':
+			assetDict = {}
+			allassets = get_assets(ppdmuri, token, 'all')
+			for asset in allassets:
+				atype = asset["type"]
+				aname = asset["name"]
+				if (atype in assetDict.keys()):
+					assetDict.get(atype).append(aname)
+				else:
+					newlist=[]
+					newlist.append(aname)
+					assetDict[atype]=newlist
+			sumtable = []
+			for key, value in assetDict.items():
+				atype = key
+				acount = len([item for item in value if item])
+				sumtable.append([atype, acount])
+			print(tabulate(sumtable, headers=["Asset Type", "Asset Count"], tablefmt='pretty'))	
+		else:
+			allassets = get_assets(ppdmuri, token, asset)
+			if len(allassets) == 0:
+				print('The asset could not be found')
+			elif len(allassets) == 1:
+				for asset in allassets:
+					print("---------------------------------------------------------")
+					print("Asset Name:", asset["name"])
+					print("Asset Type:", asset["type"])
+					print("Last Backup:", asset["lastAvailableCopyTime"])
+			else:
+				assetlist = []
+				for asset in allassets:
+					try:
+						if asset["type"] == "VMWARE_VIRTUAL_MACHINE":
+							assetlist.append([asset["name"], asset["type"], asset["lastAvailableCopyTime"], asset["details"]["vm"]["guestOS"]])
+						elif asset["type"] == "KUBERNETES":
+							assetlist.append([asset["name"], asset["type"], asset["lastAvailableCopyTime"], asset["details"]["k8s"]["subType"]])
+						elif asset["type"] == "ORACLE_DATABASE":
+							assetlist.append([asset["name"], asset["type"], asset["lastAvailableCopyTime"], asset["details"]["database"]["clusterName"]])
+						elif asset["type"] == "MICROSOFT_SQL_DATABASE":
+							assetlist.append([asset["name"], asset["type"], asset["lastAvailableCopyTime"], asset["details"]["database"]["clusterName"]])
+						elif asset["type"] == "FILE_SYSTEM":
+							assetlist.append([asset["details"]["fileSystem"]["hostName"], asset["type"], asset["lastAvailableCopyTime"], asset["details"]["fileSystem"]["hostOS"]])
+						elif asset["type"] == "SAP_HANA_DATABASE":
+							assetlist.append([asset["name"], asset["type"], asset["lastAvailableCopyTime"], asset["details"]["database"]["clusterName"]])
+						elif asset["type"] == "VMAX_STORAGE_GROUP":
+							assetlist.append([asset["name"], asset["type"]])
+						elif asset["type"] == "XTREMIO_CONSISTENCY_GROUP":
+							assetlist.append([asset["name"], asset["type"]])
+						else:
+							assetlist.append(["NA"])
+					except Exception:
+						print ("Some assets couldn't fetch")
+				print(tabulate(assetlist, headers=["Client Name", "Client Type", "Last BackupCopy", "Details"], tablefmt="pretty"))
 	elif policies:
 		allpolicies = get_policies(ppdmuri, token, policies)
 		policylist = []
@@ -329,7 +371,10 @@ def show(jobs, period, storage, asset, policies):
 			except Exception:
 				print ("Some policies coudn't fetch")
 				continue
-		print(tabulate(policylist, headers=["Policy Name", "Policy Type", "Status", "Frequency", "Next Schedule"], tablefmt="pretty"))
+		if len(policylist) == 0:
+			print ("No policies found!")
+		else:
+			print(tabulate(policylist, headers=["Policy Name", "Policy Type", "Status", "Frequency", "Next Schedule"], tablefmt="pretty"))
 	else:
 		print ("Select correcct option to display jobs, storage or policies, try show --help")
 
@@ -413,5 +458,41 @@ def monitor(activityid, jobs, period):
 	else:
 		print ("Please select the correct option, type --help")
 
+@my_app.command()
+@click.option('--backupsize', required=False, help="Displays backup size of asset or assets")
+def report(backupsize):
+	"""This command displays information about jobs, storage, assets and policies \n
+	Example commands: \n
+	report --backupsize <assetname> or <keyword>
+	report --backupsize all
+	"""
+	if backupsize:
+			allassets = get_assets(ppdmuri, token, backupsize)
+			assetlist = []
+			if len(allassets) == 0:
+				print('The asset could not be found')
+			elif (backupsize == 'all'):
+				for asset in allassets:
+					try:
+						assetlist.append([asset["name"], asset["protectionCapacity"]["size"]])
+					except Exception:
+						print ("Some assets couldn't fetch")
+				df = pd.DataFrame(assetlist)
+				print("-----------------------------------------------------")
+				print ("This reports shows the single largest backup size")
+				print("-----------------------------------------------------")				
+				print ("Total number of assets: ", df[0].count())
+				print ("Total Largest Backup (GB):", "%.2f" %((df[1].sum())/1024/1024/1024))
+				# print(tabulate(df, headers=["Clients", "Total Backup (GB)"], tablefmt="pretty", showindex="False"))
+			else:
+				for asset in allassets:
+					try:
+						assetlist.append([asset["name"], asset["protectionCapacity"]["size"]])
+					except Exception:
+						print ("Some assets couldn't fetch")
+				print(tabulate(assetlist, headers=["Client Name", "Largest Backup (Bytes)"], tablefmt="pretty"))
+	else:
+		print ("Please specify a correct option, type --help")
+
 if __name__ == '__main__':
-    my_app()
+	my_app()
