@@ -60,8 +60,7 @@ report --backupsize all
 ```
 
 ## Example Output
-![](images/screen1.PNG)
-![](images/screen2.PNG)
+![](images/rjcli.gif)
 ```
 dellemc-ppdm-cli > show --jobs successful --period 1day-ago
 +---------------+-----------+------------+--------------------------+
