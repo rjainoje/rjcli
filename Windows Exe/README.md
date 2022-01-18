@@ -48,12 +48,21 @@ show --asset all
 show --asset <key-word>
 show --policies all
 show --policies <key-word>
+show --cred <all>
 
 backup --client <name>
 backup --retry ALL-FAILED --period <1day-ago | 1week-ago>
 
 monitor --activityid <activity-id>
 monitor --jobs running
+
+report --backupsize <clientname> or <keyword>
+report --backupsize all
+
+delete --cred <user>
+
+alerts --display <warning | critical | informational | summary>
+alerts --ack <warning | critical | informational | all>
 ```
 
 ## Example Output
@@ -85,21 +94,37 @@ dellemc-ppdm-cli > show --policies all
 +--------------+------------------------+--------+-----------+----------------------+
 | Policy Name  |      Policy Type       | Status | Frequency |    Next Schedule     |
 +--------------+------------------------+--------+-----------+----------------------+
-| PLC1-VMware  | VMWARE_VIRTUAL_MACHINE | ACTIVE |  HOURLY   | 2020-05-06T10:00:00Z |
-| PLC-VMware-2 | VMWARE_VIRTUAL_MACHINE | ACTIVE |  HOURLY   | 2020-05-21T04:00:00Z |
+|  BackupAtl   | VMWARE_VIRTUAL_MACHINE | ACTIVE |  MONTHLY  | 2020-06-09T03:00:00Z |
+|   k8s-plc    |       KUBERNETES       | ACTIVE |  HOURLY   | 2020-06-09T03:00:00Z |
+|   k8_test    |       KUBERNETES       | ACTIVE |  HOURLY   | 2020-06-08T17:43:00Z |
+|   fs_test    |      FILE_SYSTEM       | ACTIVE |  HOURLY   | 2020-06-08T18:23:00Z |
+|    oracle    |    ORACLE_DATABASE     | ACTIVE |  HOURLY   | 2020-06-09T12:00:00Z |
+|    Test1     | VMWARE_VIRTUAL_MACHINE | ACTIVE |  HOURLY   | 2020-06-09T02:00:00Z |
 +--------------+------------------------+--------+-----------+----------------------+
 
 
-dellemc-ppdm-cli > show --storage details
+dellemc-ppdm-cli > report --backupsize all
+-----------------------------------------------------
+This reports shows the single largest backup size
+-----------------------------------------------------
+Total number of assets:  125
+Total Largest Backup (GB): 700.00
 
+
+dellemc-ppdm-cli > show --storage details
 ---------------------------------------------------------
-Storage Name: ddve03.DOMAIN.LOCAL
-Storage Type: DATA_DOMAIN_SYSTEM
-Storage Model: DD VE Version 4.0
-OS Version:    7.1.0.10-646016
-Total Size (GB): 351.01
-Used Percentage: 4.00
-Last Discovered: DETECTED
+Data Domain Name: ddve-str-01.domain.local
+DD Type:          DATA_DOMAIN_SYSTEM
+DD Model:         DD VE Version 4.0
+DD Serial Number: xxxxxxxxxxxxxxxx
+DDOS Version:     6.2.0.10-615548
+Total Size (GB):  351.01
+Used Size (GB):   128.34
+Dedupe Factor(x): 88.5
+Used Percentage:  36.00
+Last Status:      DETECTED
+Last Discovered:  2020-06-09T11:16:02.109Z
+
 ```
 ## Contributions
 
