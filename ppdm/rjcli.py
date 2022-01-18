@@ -1,7 +1,7 @@
-# rjcli v1.0 for Dell EMC Power Protect Data Manager - Github @ rjainoje
+# rjcli v1.0.5 for Dell EMC Power Protect Data Manager - Github @ rjainoje
 __author__ = "Raghava Jainoje"
-__version__ = "1.0.4"
-__email__ = "raghavachary_j@yahoo.com"
+__version__ = "1.0.5"
+__email__ = " "
 
 import requests
 import json
@@ -61,9 +61,10 @@ def get_policies(ppdmuri, token, policies):
 	return response.json()['content']
 
 def get_activities(ppdmuri, token, jobs, window):
-	'''This function returns activities based on filters in JSON'''
+	'''This function returns JSON with all the activities based on the selected filters'''
 	uri = ppdmuri + 'activities'
 	headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
+	print (window)
 	filter = 'classType in ("JOB", "JOB_GROUP") and category eq "PROTECT" and createdTime gt "{}"'.format(window)
 	orderby = 'createTime DESC'
 	pageSize = '10000'
@@ -82,7 +83,7 @@ def get_activities(ppdmuri, token, jobs, window):
 		response = requests.get(uri, headers=headers, params=params, verify=False)
 		response.raise_for_status()
 	except requests.exceptions.RequestException as err:
-		print("The call {}{} failed with exception:{} and {}".format(response.request.method, response.url, err, r))
+		print("The call {}{} failed with exception:{}".format(response.request.method, response.url, err))
 	if (response.status_code != 200):
 		raise Exception('Failed to query {}, code: {}, body: {}'.format(uri, response.status_code, response.text))
 	if 'activityId' in response.json():
@@ -116,10 +117,10 @@ def getwindow(period):
 	'''This function returns time with the delta'''
 	if period == '1day-ago':
 		gettime = datetime.now() - timedelta(days = 1)
-		window = gettime.isoformat()
+		window = gettime.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 	elif period == '1week-ago':
 		gettime = datetime.now() - timedelta(days = 7)
-		window = gettime.isoformat()
+		window = gettime.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
 	else:
 		raise Exception ("Please select the period either 1day-ago or 1week-ago")
 	return window
@@ -193,6 +194,83 @@ def backup_retry(ppdmuri, token, actid, joblist):
 		retrylist.append(activityids['newJobId'])
 	return retrylist
 
+def get_creds(ppdmuri, token, cred):
+	'''This function returns credentials in JSON'''
+	uri = ppdmuri + 'credentials'
+	headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
+	pageSize = '10000'
+	if cred != 'all':
+		filter = 'name eq "{0}" '.format(cred)
+		params = {'filter': filter, 'pageSize': pageSize}
+		try:
+			response = requests.get(uri, headers=headers, params=params, verify=False)
+			response.raise_for_status()
+		except requests.exceptions.RequestException as err:
+			print("The call {}{} failed with exception:{}".format(response.request.method, response.url, err))
+		if (response.status_code != 200):
+			raise Exception('Failed to query {}, code: {}, body: {}'.format(uri, response.status_code, response.text))
+		if response.json()['page']['totalElements'] != 0:
+			return response.json()['content'][0]['id']
+		else:
+			return response.json()['content']
+	else:
+		params = {'pageSize': pageSize}
+		try:
+			response = requests.get(uri, headers=headers, params=params, verify=False)
+			response.raise_for_status()
+		except requests.exceptions.RequestException as err:
+			print("The call {}{} failed with exception:{}".format(response.request.method, response.url, err))
+		if (response.status_code != 200):
+			raise Exception('Failed to query {}, code: {}, body: {}'.format(uri, response.status_code, response.text))
+		return response.json()['content']
+
+def delete_cred(ppdmuri, token, credid, cred):
+	'''This function takes credentials ID and credentials name to delete'''
+	uri = ppdmuri + 'credentials/'+credid+'/'
+	headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
+	try:
+		response = requests.delete(uri, headers=headers, verify=False)
+		response.raise_for_status()
+	except requests.exceptions.RequestException as err:
+		print("The call {} {} failed with exception:{}".format(response.request.method, response.url, err))
+	if (response.status_code != 204):
+		raise Exception('Failed to delete {}, code: {}, body: {}'.format(uri, response.status_code, response.text))
+	print ("Deleted credential name {} successfully".format(cred))
+
+def get_alerts(ppdmuri, token, alerttype):
+	'''This function returns alerts based on filters in JSON'''
+	uri = ppdmuri + 'alerts'
+	headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
+	orderby = 'postedTime DESC'
+	pageSize = '10000'
+	if alerttype in ("warning", "critical", "informational"):
+		filter ='severity eq "{}"'.format(alerttype)
+		params = {'filter': filter, 'orderby': orderby, 'pageSize': pageSize}
+	else:
+		params = {'orderby': orderby, 'pageSize': pageSize}
+	try:
+		response = requests.get(uri, headers=headers, params=params, verify=False)
+		response.raise_for_status()
+	except requests.exceptions.RequestException as err:
+		print("The call {}{} failed with exception:{}".format(response.request.method, response.url, err))
+	if (response.status_code != 200):
+		raise Exception('Failed to query {}, code: {}, body: {}'.format(uri, response.status_code, response.text))
+	return response.json()['content']
+
+def ack_alerts(ppdmuri, token, alertslist):
+	'''This function acknowledges all the alerts'''
+	uri = ppdmuri + 'alerts/acknowledgements'
+	headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(token)}
+	payload = json.dumps({"acknowledgement": {"acknowledgeState": "ACKNOWLEDGED"}, "messageIds": alertslist})
+	try:
+		response = requests.post(uri, data=payload, headers=headers, verify=False)
+		response.raise_for_status()
+	except requests.exceptions.RequestException as err:
+		print("The call {} {} failed with exception:{}".format(response.request.method, response.url, err))
+	if response.status_code not in [200, 201, 202]:
+		print('Failed to acknowledge ID {}, code: {}, body: {}'.format(id, response.status_code, response.text))
+	return response.json()['acknowledgementCount']
+
 @shell(prompt='dellemc-ppdm-cli > ', intro='')
 def my_app():
 	'''This is the banner'''
@@ -242,14 +320,16 @@ def login(ppdmsrv, uname, password):
 @click.option('--storage', required=False, help="Displays storage, accepts option 'details'")
 @click.option('--asset', required=False, help="Displays assets, filter by client name or 'all'")
 @click.option('--policies', required=False, help="Displays policy information, it accepts option 'all' ")
-def show(jobs, period, storage, asset, policies):
+@click.option('--cred', required=False, help="Lists all the credentails")
+def show(jobs, period, storage, asset, policies, cred):
 	"""This command displays information about jobs, storage, assets and policies \n
 	Example commands: \n
 	show --jobs summary --period <1day-ago | 1week-ago> \n
 	show --jobs <successful | failed | all> --period <> \n
 	show --storage details \n
 	show --asset <asset-name | all | summary> \n
-	show --policies <policy-name | all>
+	show --policies <policy-name | all> \n
+	show --cred <all>
 	"""
 	if (jobs == 'failed' or jobs == 'successful' or jobs == 'all'):
 		window = getwindow(period)
@@ -375,8 +455,19 @@ def show(jobs, period, storage, asset, policies):
 			print ("No policies found!")
 		else:
 			print(tabulate(policylist, headers=["Policy Name", "Policy Type", "Status", "Frequency", "Next Schedule"], tablefmt="pretty"))
+	elif cred:
+		if cred == 'all':
+			allcreds = get_creds(ppdmuri, token, 'all')
+			for credid in allcreds:
+				print("---------------------------------------------------------")
+				print("Credential Name:", credid["name"])
+				print("Credential Username:", credid["username"])
+				print("Credential ID:", credid["id"])
+				print("Credential Type:", credid["type"])				
+		else:
+			print ("Select option all to display all the credentials")
 	else:
-		print ("Select correcct option to display jobs, storage or policies, try show --help")
+		print ("Select correct option to display jobs, storage or policies, try show --help")
 
 @my_app.command()
 @click.option('--client', required=False, help="Specify a client name to backup")
@@ -435,7 +526,7 @@ def backup(client, backuptype, retry, period):
 @click.option('--jobs', required=False, help="It takes 'running' as an argument")
 @click.option('--period', required=False, help="The period of scope to list, default 1day-ago")
 def monitor(activityid, jobs, period):
-	"""This will monitor active jobs \n
+	"""This command monitors active jobs \n
 	monitor --activityid <activity-id> \n
 	monitor --jobs running [--period 1day-ago | 1week-ago. --period is optinal]\n
 	"""
@@ -461,9 +552,9 @@ def monitor(activityid, jobs, period):
 @my_app.command()
 @click.option('--backupsize', required=False, help="Displays backup size of asset or assets")
 def report(backupsize):
-	"""This command displays information about jobs, storage, assets and policies \n
+	"""This command displays backup size of an asset or combined backup size of all the assets \n
 	Example commands: \n
-	report --backupsize <assetname> or <keyword>
+	report --backupsize <assetname> or <keyword> \n
 	report --backupsize all
 	"""
 	if backupsize:
@@ -479,7 +570,7 @@ def report(backupsize):
 						print ("Some assets couldn't fetch")
 				df = pd.DataFrame(assetlist)
 				print("-----------------------------------------------------")
-				print ("This reports shows the single largest backup size")
+				print ("This report shows the single largest backup size")
 				print("-----------------------------------------------------")				
 				print ("Total number of assets: ", df[0].count())
 				print ("Total Largest Backup (GB):", "%.2f" %((df[1].sum())/1024/1024/1024))
@@ -493,6 +584,81 @@ def report(backupsize):
 				print(tabulate(assetlist, headers=["Client Name", "Largest Backup (Bytes)"], tablefmt="pretty"))
 	else:
 		print ("Please specify a correct option, type --help")
+
+@my_app.command()
+@click.option('--assetgroup', required=False, help="Displays backup size of asset or assets")
+def create(assetgroup):
+	"""This command displays i"""
+
+@my_app.command()
+@click.option('--cred', required=False, help="Deletes selected credentials")
+def delete(cred):
+	"""This command deletes selected credentials \n
+	Example commands: \n
+	delete --cred <user>
+	"""
+	if cred:
+		credid = get_creds(ppdmuri, token, cred)
+		if len(credid) == 0:
+			print('The credentials could not be found')
+		else:
+			delete_cred(ppdmuri, token, credid, cred)
+
+
+@my_app.command()
+@click.option('--display', required=False, help="Lists all the alerts")
+@click.option('--ack', required=False, help="Acknowledges all the alerts")
+def alerts(display, ack):
+	"""This command displays and acknowledges alerts \n
+	Example commands: \n
+	alerts --display <warning | critical | informational | summary> \n
+	alerts --ack <warning | critical | informational | all>
+	"""
+	if display in ["warning", "critical", "informational"]:
+		allalerts = get_alerts(ppdmuri, token, display)
+		alertslist = []
+		if len(allalerts) == 0:
+			print ("There are no alerts to display, change the criteria and try again")
+		else:
+			for alert in allalerts:
+				try:
+					alertslist.append([alert['messageID'], alert['category'], alert['severity'], alert['responseAction'], alert['postedTime']])
+				except Exception:
+					print ("Some jobs couldn't fetch")
+					continue
+			print(tabulate(alertslist, headers=["messageID","Category", "Severity", "Response Action", "Posted Time"], tablefmt="pretty"))
+	elif display == 'summary':
+		alertslist = []
+		allalerts = get_alerts(ppdmuri, token, display)
+		if len(allalerts) == 0:
+			print ("No alerts found!")
+		else:
+			for alert in allalerts:
+				try:
+					alertslist.append([alert['severity']])
+				except Exception:
+					print ("Some alerts couldn't fetch")
+			print ()
+			ok = countList(alertslist, 'WARNING')
+			failed = countList(alertslist, 'CRITICAL')
+			canceled = countList(alertslist, 'INFORMATIONAL')
+			totaljobs = (ok+failed+canceled)
+			sumlist = [(ok, failed, canceled, totaljobs)]
+			print("															")
+			print("ALERT SUMMARY REPORT                  ")
+			print(tabulate(sumlist, headers=["Warning", "Critical", "Informational", "Total Alerts"], tablefmt="pretty"))
+	elif ack in ["warning", "critical", "informational", "all"]:
+		alertslist = []
+		allalerts = get_alerts(ppdmuri, token, ack)
+		for alert in allalerts:
+			alertslist.append(alert['id'])
+		# print ("Acknowledging the following {} alerts".format(ack))
+		# print (alertslist)
+		ackalerts = ack_alerts(ppdmuri, token, alertslist)
+		print ("Acknowledged {} {} alerts".format(ackalerts, ack))
+
+	else:
+		print ("Please select the correct option, type command --help for more information")
 
 if __name__ == '__main__':
 	my_app()

@@ -48,6 +48,7 @@ show --asset summary
 show --asset <key-word>
 show --policies all
 show --policies <key-word>
+show --cred <all>
 
 backup --client <name>
 backup --retry ALL-FAILED --period <1day-ago | 1week-ago>
@@ -57,6 +58,11 @@ monitor --jobs running
 
 report --backupsize <clientname> or <keyword>
 report --backupsize all
+
+delete --cred <user>
+
+alerts --display <warning | critical | informational | summary>
+alerts --ack <warning | critical | informational | all>
 ```
 
 ## Example Output
